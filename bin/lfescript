@@ -131,4 +131,5 @@ fi
 LFE_HOME_LIBS=$(find_libs "$HOME"/.lfe/lib)
 ALL_LIBS="$LFE_ROOTDIR":"$ERL_LIBS":"$PROJ_LIBS""$R3_PROJ_LIBS""$LFE_HOME_LIBS"
 
-ERL_LIBS="$ALL_LIBS" exec "$emulator" +B -boot start_clean $shebangs "-noshell" "-run" "lfescript" "start" "$@"
+ERL_LIBS="$ALL_LIBS"
+exec "$emulator" +B -boot start_clean $shebangs "-noshell" "-pa" "$LFE_ROOTDIR/ebin" "-run" "lfescript" "start" "$@"

@@ -10,6 +10,7 @@
 /priv/
 /src/lfe_scan.erl
 bin/lfeexec
+bin/lfeexec.exe
 comp_opts.mk
 doc/epub/*
 doc/pdf/*

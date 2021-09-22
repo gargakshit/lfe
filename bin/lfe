@@ -46,6 +46,29 @@ export LFE_ROOTDIR
 export LFE_BINDIR
 export LFE_PROGNAME
 
+# Set which emulator to use, the default is erl.
+emulator=${LFE_EMULATOR-"erl"}
+
+windows_erl_opts=""
+
+# Only apply the extra arguments if windows is detected
+case "$(uname -s)" in
+    CYGWIN*|MINGW*|MSYS*)
+        windows_erl_opts="-noshell -run lfe_shell server"
+        ;;
+esac
+
+# Set extra emulator arguments
+args=${LFE_EMULATOR_ARGS-"$windows_erl_opts"}
+
+# Windows Specific:
+# If using werl or werl.exe as the LFE_EMULATOR, do not add the fixes required
+# for erl
+if [[ $LFE_EMULATOR == *"werl" || $LFE_EMULATOR == *"werl.exe" ]]
+then
+    args=${LFE_EMULATOR_ARGS-""}
+fi
+
 i="$#"                          # Counter
 e=""                            # Eval flag/value
 
@@ -138,4 +161,4 @@ else
 fi
 LFE_HOME_LIBS=$(find_libs "$HOME"/.lfe/lib)
 ALL_LIBS="$LFE_ROOTDIR":"$ERL_LIBS":"$PROJ_LIBS""$R3_PROJ_LIBS""$LFE_HOME_LIBS"
-ERL_LIBS="$ALL_LIBS" exec erl "$@"
+ERL_LIBS="$ALL_LIBS" exec "$emulator" "-pa" "$LFE_ROOTDIR/ebin" $args "$@"
