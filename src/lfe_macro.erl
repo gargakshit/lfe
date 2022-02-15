@@ -395,9 +395,16 @@ exp_form(['map-remove'|As], Env, St) ->
 exp_form(['define-record',Name,Fds], Env, St0) ->
     {Efds,St1} = exp_rec_fields(Name, Fds, Env, St0),
     {['define-record',Name,Efds],St1};
+exp_form(['record',Name|Args], Env, St0) ->
+    {Eas,St1} = exp_tail(Args, Env, St0),
+    {['record',Name|Eas],St1};
+%% make-record has been deprecated but we sill accept it for now.
 exp_form(['make-record',Name|Args], Env, St0) ->
     {Eas,St1} = exp_tail(Args, Env, St0),
     {['make-record',Name|Eas],St1};
+exp_form(['is-record',E,Name], Env, St0) ->
+    {Ee,St1} = exp_form(E, Env, St0),
+    {['is-record',Ee,Name],St1};
 exp_form(['record-index',Name,F], _, St) ->
     {['record-index',Name,F],St};
 exp_form(['record-field',E,Name,F], Env, St0) ->

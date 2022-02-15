@@ -76,7 +76,7 @@ format_error({illegal_literal,Lit}) ->
     format_value(Lit, <<"illegal literal value ">>);
 format_error({illegal_mapkey,Key}) ->
     lfe_io:format1(<<"illegal map key ~w">>, [Key]);
-format_error(bad_arity) -> <<"head arity mismatch">>;
+format_error(bad_head_arity) -> <<"function head arity mismatch">>;
 format_error({argument_limit,Arity}) ->
     lfe_io:format1(<<"too many arguments ~w">>, [Arity]);
 format_error({bad_form,Form}) ->
@@ -194,10 +194,21 @@ eval_expr(['map-update',Map|As], Env) ->
 eval_expr(['map-remove',Map|Ks], Env) ->
     eval_map_remove('map-remove', Map, Ks, Env);
 %% Record special forms.
-eval_expr(['make-record',Name|Args], Env) ->
+eval_expr(['record',Name|As], Env) ->
     case lfe_env:get_record(Name, Env) of
         {yes,Fields} ->
-            make_record_tuple(Name, Fields, Args, Env);
+            make_record_tuple(Name, Fields, As, Env);
+        no -> undefined_record_error(Name)
+    end;
+%% make-record has been deprecated but we sill accept it for now.
+eval_expr(['make-record',Name|As], Env) ->
+    eval_expr(['record',Name|As], Env);
+eval_expr(['is-record',E,Name], Env) ->
+    Ev = eval_expr(E, Env),
+    case lfe_env:get_record(Name, Env) of
+        {yes,Fields} ->
+            RecSize = length(Fields) + 1,
+            is_tuple(Ev) andalso (tuple_size(Ev) =:= RecSize);
         no -> undefined_record_error(Name)
     end;
 eval_expr(['record-index',Name,F], Env) ->
@@ -218,7 +229,7 @@ eval_expr(['record-update',E,Name|Args], Env) ->
     Ev = eval_expr(E, Env),
     case lfe_env:get_record(Name, Env) of
         {yes,Fields} ->
-            update_record_tuple(Name, Fields, Ev, Args, Env);
+            update_record_tuple(Ev, Name, Fields, Args, Env);
         no -> undefined_record_error(Name)
     end;
 %% Function forms.
@@ -323,10 +334,10 @@ get_field_index(Name, [_|Fields], F, I) ->
 get_field_index(Name, [], F, _I) ->
     undefined_field_error(Name, F).
 
-%% update_record_tuple(Name, Fields, Record, Args, Env) -> TupleList
+%% update_record_tuple(Record, Name, Fields, Args, Env) -> TupleList
 %%  Update the Record with the Args.
 
-update_record_tuple(Name, Fields, Rec, Args, Env) ->
+update_record_tuple(Rec, Name, Fields, Args, Env) ->
     Es = update_record_elements(Fields, tl(tuple_to_list(Rec)), Args, Env),
     list_to_tuple([Name|Es]).
 
@@ -519,7 +530,7 @@ bind_args([A|As], [E|Es], Env) when is_atom(A) ->
     bind_args(As, Es, add_vbinding(A, E, Env));
 bind_args([], [], Env) -> Env;
 bind_args(_As, _Vs, _Env) ->
-    eval_error(bad_arity).
+    eval_error(bad_head_arity).
 
 match_lambda_arity([[Pats|_]|Cls]) ->
     case lfe_lib:is_proper_list(Pats) of
@@ -544,7 +555,7 @@ apply_match_lambda([[Pats|B0]|Cls], Vals, Env) ->
                 {yes,B1,Vbs} -> eval_body(B1, add_vbindings(Vbs, Env));
                 no -> apply_match_lambda(Cls, Vals, Env)
             end;
-       true -> eval_error(bad_arity)
+       true -> eval_error(bad_head_arity)
     end;
 apply_match_lambda([], _Vals, _) -> eval_error(function_clause);
 apply_match_lambda(_, _, _) -> bad_form_error('match-lambda').
@@ -1079,12 +1090,15 @@ match([map|Ps], Val, Pbs, Env) ->
         false -> no
     end;
 %% Record patterns.
-match(['make-record',Name|Fs], Val, Pbs, Env) ->
+match(['record',Name|Fs], Val, Pbs, Env) ->
     case lfe_env:get_record(Name, Env) of
         {yes,Fields} ->
             match_record_tuple(Name, Fields, Fs,  Val, Pbs, Env);
         no -> undefined_record_error(Name)
     end;
+%% make-record has been deprecated but we sill accept it for now.
+match(['make-record',Name|Fs], Val, Pbs, Env) ->
+    match(['record',Name|Fs], Val, Pbs, Env);
 match(['record-index',Name,F], Val, Pbs, Env) ->
     case lfe_env:get_record(Name, Env) of
         {yes,Fields} ->
